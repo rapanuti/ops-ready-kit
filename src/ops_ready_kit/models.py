@@ -10,6 +10,18 @@ class DetectedFile(BaseModel):
     reason: str
 
 
+class DockerfileInfo(BaseModel):
+    path: str = "Dockerfile"
+    base_images: list[str] = Field(default_factory=list)
+    exposed_ports: list[str] = Field(default_factory=list)
+    has_healthcheck: bool = False
+    user: str | None = None
+    workdir: str | None = None
+    command: str | None = None
+    run_steps: int = 0
+    copy_steps: int = 0
+
+
 class ProjectDiagnosis(BaseModel):
     root: Path
     name: str
@@ -17,6 +29,7 @@ class ProjectDiagnosis(BaseModel):
     frameworks: list[str] = Field(default_factory=list)
     package_managers: list[str] = Field(default_factory=list)
     docker: bool = False
+    dockerfile: DockerfileInfo | None = None
     docker_compose: bool = False
     kubernetes: bool = False
     github_actions: bool = False

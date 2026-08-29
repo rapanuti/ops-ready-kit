@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 
+from ops_ready_kit.dockerfile import parse_dockerfile
 from ops_ready_kit.models import DetectedFile, ProjectDiagnosis
 
 IGNORED_DIRS = {
@@ -27,6 +28,7 @@ def scan_repository(root: Path) -> ProjectDiagnosis:
     files = list(_iter_files(root))
     relative_paths = {_relative(file, root) for file in files}
 
+    dockerfile = parse_dockerfile(root / "Dockerfile") if "Dockerfile" in relative_paths else None
     diagnosis = ProjectDiagnosis(
         root=root,
         name=root.name,
@@ -34,6 +36,7 @@ def scan_repository(root: Path) -> ProjectDiagnosis:
         frameworks=_detect_frameworks(root, relative_paths),
         package_managers=_detect_package_managers(relative_paths),
         docker="Dockerfile" in relative_paths,
+        dockerfile=dockerfile,
         docker_compose=any(
             path in relative_paths for path in {"docker-compose.yml", "compose.yml"}
         ),
@@ -192,6 +195,8 @@ def _recommend(diagnosis: ProjectDiagnosis) -> list[str]:
         recommendations.append(
             "Add a Dockerfile so deployments can build a repeatable container image."
         )
+    elif diagnosis.dockerfile and not diagnosis.dockerfile.has_healthcheck:
+        recommendations.append("Add a Dockerfile HEALTHCHECK or document external health probes.")
     if not diagnosis.docker_compose:
         recommendations.append("Add docker-compose.yml for local dependency orchestration.")
     if not diagnosis.kubernetes:
@@ -215,6 +220,12 @@ def _warn(diagnosis: ProjectDiagnosis) -> list[str]:
         )
     if diagnosis.docker and not diagnosis.health_checks:
         warnings.append("Containerization detected without obvious health checks.")
+    if diagnosis.dockerfile and not diagnosis.dockerfile.user:
+        warnings.append("Dockerfile does not set USER; containers may run as root by default.")
+    if diagnosis.dockerfile and not diagnosis.dockerfile.exposed_ports:
+        warnings.append(
+            "Dockerfile does not expose ports; confirm runtime networking expectations."
+        )
     return warnings
 
 

@@ -54,10 +54,13 @@ def _render_runbook(diagnosis: ProjectDiagnosis) -> str:
 
 ## Service Summary
 
+{% set docker_ports = d.dockerfile.exposed_ports if d.dockerfile else [] -%}
 - Primary language: {{ d.primary_language }}
 - Frameworks: {{ d.frameworks | join(", ") if d.frameworks else "none detected" }}
 - Package managers: {{ d.package_managers | join(", ") if d.package_managers else "none detected" }}
 - Docker: {{ "yes" if d.docker else "no" }}
+- Docker base images: {{ d.dockerfile.base_images | join(", ") if d.dockerfile else "none" }}
+- Docker exposed ports: {{ docker_ports | join(", ") if docker_ports else "none detected" }}
 - Kubernetes: {{ "yes" if d.kubernetes else "no" }}
 - CI: {{ "GitHub Actions" if d.github_actions else "not detected" }}
 
@@ -189,6 +192,19 @@ def _render_architecture(diagnosis: ProjectDiagnosis) -> str:
 - No deployment files detected.
 {% endfor %}
 
+{% if d.dockerfile %}
+## Dockerfile Summary
+
+- Base images:
+  {{ d.dockerfile.base_images | join(", ") if d.dockerfile.base_images else "none detected" }}
+- Exposed ports:
+  {{ d.dockerfile.exposed_ports | join(", ") if d.dockerfile.exposed_ports else "none detected" }}
+- Healthcheck: {{ "yes" if d.dockerfile.has_healthcheck else "no" }}
+- Runtime user: {{ d.dockerfile.user or "not set" }}
+- Workdir: {{ d.dockerfile.workdir or "not set" }}
+- Command: {{ d.dockerfile.command or "not detected" }}
+{% endif %}
+
 ## Architecture Notes
 
 This report is generated from repository signals.
@@ -223,6 +239,17 @@ def _render_deployment(diagnosis: ProjectDiagnosis) -> str:
 
 Generated deployment files are templates.
 Review ports, commands, secrets, resources, and registry names before production use.
+
+{% if d.dockerfile %}
+## Dockerfile Review
+
+- Base images:
+  {{ d.dockerfile.base_images | join(", ") if d.dockerfile.base_images else "none detected" }}
+- Exposed ports:
+  {{ d.dockerfile.exposed_ports | join(", ") if d.dockerfile.exposed_ports else "none detected" }}
+- Healthcheck: {{ "present" if d.dockerfile.has_healthcheck else "missing" }}
+- Runtime user: {{ d.dockerfile.user or "not set" }}
+{% endif %}
 """,
         diagnosis,
     )
@@ -264,6 +291,14 @@ def _render_checklist(diagnosis: ProjectDiagnosis) -> str:
     checks = [
         ("Run tests in CI", diagnosis.github_actions),
         ("Define a repeatable build", diagnosis.docker),
+        (
+            "Set a non-root Docker runtime user",
+            bool(diagnosis.dockerfile and diagnosis.dockerfile.user),
+        ),
+        (
+            "Define a Docker healthcheck or external probe",
+            bool(diagnosis.dockerfile and diagnosis.dockerfile.has_healthcheck),
+        ),
         ("Document local dependencies", diagnosis.docker_compose),
         ("Expose health checks", diagnosis.health_checks),
         ("Document security reporting", bool(diagnosis.security_files)),
