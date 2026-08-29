@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project uses Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+- Dockerfile parser for base images, exposed ports, healthcheck, runtime user, workdir, command, and build step counts.
+
 ## [0.1.0] - 2026-08-29
 
 ### Added
